@@ -1,27 +1,39 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
+const serverAddress = ":8080"
+
+var logger *zap.SugaredLogger
+
 func main() {
+	zapLogger, err := zap.NewProduction()
+	if err != nil {
+		panic(fmt.Errorf("cannot create zap.NewProduction, error: %w", err))
+	}
+
+	defer zapLogger.Sync()
+	logger = zapLogger.Sugar()
+
 	router := createRouter()
 	http.Handle("/", router)
 	startServer(router)
 }
 
 func startServer(router http.Handler) {
-	serverAddress := ":8080"
 	server := &http.Server{Addr: serverAddress, Handler: router}
-
 	idleConnsClosed := make(chan struct{})
 
 	go func() {
@@ -31,22 +43,20 @@ func startServer(router http.Handler) {
 
 		<-sigint
 
-		log.Printf("Shutdown: %v", true)
-		// We received an interrupt signal, shut down.
+		logger.Info("shouting down the server")
+
 		if err := server.Shutdown(context.Background()); err != nil {
-			// Error from closing listeners, or context timeout:
-			log.Printf("HTTP server Shutdown: %v", err)
+			logger.Error("cannot shut down HTTP server, error: %v", err)
 		}
 
 		close(idleConnsClosed)
 	}()
 
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
-		// Error starting or closing listener:
-		log.Printf("HTTP server ListenAndServe: %v", err)
+		logger.Error("HTTP server cannot ListenAndServe, error: %v", err)
 	}
 
-	log.Printf("Exiting: %v", true)
+	logger.Info("HTPP server stopped")
 
 	<-idleConnsClosed
 }
@@ -60,12 +70,21 @@ func createRouter() *mux.Router {
 }
 
 func echoHandler(w http.ResponseWriter, r *http.Request) {
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	body := buf.String()
+
+	logger.Infow("new request", "body", body)
+
 	hostname, _ := os.Hostname()
 
-	resp := map[string]interface{}{}
-	resp["cookies"] = r.Cookies()
-	resp["headers"] = r.Header
-	resp["hostname"] = hostname
+	resp := map[string]interface{}{
+		"body":     body,
+		"method":   r.Method,
+		"cookies":  r.Cookies(),
+		"headers":  r.Header,
+		"hostname": hostname}
 
 	bts, err := json.Marshal(resp)
 	if err != nil {
@@ -82,6 +101,6 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("health")
+	logger.Info("new health check request")
 	w.WriteHeader(http.StatusOK)
 }
