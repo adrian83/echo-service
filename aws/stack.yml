@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+
+Resources:
+
+  EchoRepository:
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: echo
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Sid: AllowAll
+            Effect: Allow
+            Principal: 
+              AWS: 
+                - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: 
+              - "ecr:*"

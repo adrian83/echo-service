@@ -1,4 +1,4 @@
-FROM golang:1.13.7-buster
+FROM golang:1.14.2-alpine
 
 ADD . /echo
 WORKDIR /echo
