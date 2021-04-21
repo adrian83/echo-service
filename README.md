@@ -1,5 +1,8 @@
-# echo-service
-Simple application used for creating sample Docker images. Go to `aws` directory, to check, how to push newly created image to ECR registry.
+# Echo-Service
+Project presenting examples of pushing Docker images into Docker registers created in GCP and AWS. 
+To check, how to push newly created image to:
+- Elastic Container Registry (on Amazon Web Services) go to `aws` directory
+- Container Registry (on Google Cloud Platform) go to `gcp` directory
 
 #### Prerequisites:
 1. Docker
